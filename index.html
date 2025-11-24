@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เกมเทศกาลทายคำ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .quiz-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+    }
+    .timer {
+      font-size: 1.5em;
+      color: #e74c3c;
+      margin-bottom: 10px;
+    }
+    .คำใบ {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .option-btn {
+      padding: 10px 20px;
+      border: 2px solid #3498db;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+    }
+    .option-btn:hover {
+      background: #3498db;
+      color: white;
+    }
+    .result {
+      font-size: 1.3em;
+      margin-top: 20px;
+      display: none;
+    }
+    .restart-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+    .restart-btn:hover {
+      background: #27ae60;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <div class="timer">เวลาเหลือ: <span id="time">30</span> วินาที</div>
+    <div class="คำใบ" id="clue">กำลังโหลดคำใบ...</div>
+    <div class="options" id="options"></div>
+    <div class="result" id="result">คะแนนของคุณ: <span id="score">0</span></div>
+    <button class="restart-btn" id="restart">เล่นใหม่</button>
+  </div>
+
+  <script>
+    // ข้อมูลคำใบ — แต่ละเทศกาล + คำใบ 1 ใบ (คุณสามารถเพิ่มคำใบหรือเทศกาลได้)
+    const quizData = [
+      { festival: "วันปีใหม่", clue: "พลุ" },
+      { festival: "สงกรานต์", clue: "สาดน้ำ" },
+      { festival: "ฮาโลวีน", clue: "ฟักทอง" },
+      { festival: "คริสต์มาส", clue: "ต้นคริสต์มาส" },
+      { festival: "ลอยกระทง", clue: "กระทง" },
+      { festival: "วันตรุษจีน", clue: "อั่งเปา" },
+      { festival: "วันสงกรานต์ภาคเหนือ", clue: "ขันดอกไม้" },
+      { festival: "วันวาเลนไทน์", clue: "หัวใจ" },
+      { festival: "วันไหว้พระจันทร์", clue: "ขนมไหว้พระจันทร์" },
+      { festival: "วันเด็กแห่งชาติ", clue: "ของเล่น" },
+      { festival: "วันแม่", clue: "ดอกมะลิ" },
+      { festival: "วันพ่อ", clue: "ผ้าไหม" },
+      { festival: "วันมาฆบูชา", clue: "ดอกบัว" },
+      { festival: "วันวิสาขบูชา", clue: "ธูปเทียน" },
+      { festival: "วันสงครามโลก", clue: "ปืนจำลอง" },
+      { festival: "วันสารทไทย", clue: "ข้าวต้ม" },
+      { festival: "วันไหว้บรรพบุรุษ", clue: "กระดาษไหว้" },
+      { festival: "วันโกหก", clue: "มุกตลก" },
+      { festival: "วันสิ้นปี", clue: "เคาท์ดาวน์" },
+      { festival: "วันปอยส่างลอง", clue: "การแข่งขันเรือ" },
+      { festival: "วันกินเจ", clue: "เจ" },
+      { festival: "วันซัปโปโรสโนว์เฟสติวัล", clue: "แกะสลักหิมะ" },
+      { festival: "วันโอบอน", clue: "โคมไฟ" },
+      { festival: "วันปิดทองฝังลูกนิมิต", clue: "ลูกนิมิต" },
+      { festival: "เทศกาลดนตรี", clue: "เสียงกีตาร์" },
+      { festival: "งานวัด", clue: "ชิงช้า" },
+      { festival: "เทศกาลบอลลูน", clue: "ลูกโป่งร้อน" },
+      { festival: "เทศกาลอาหาร", clue: "ซุ้มของกิน" },
+      { festival: "เทศกาลภาพยนตร์", clue: "เรดคาร์เพท" },
+      { festival: "เทศกาลหนังสือ", clue: "หนังสือ" }
+    ];
+
+    let currentIndex = 0;
+    let score = 0;
+    let timeLeft = 30;
+    let timerInterval;
+
+    const timeEl = document.getElementById("time");
+    const clueEl = document.getElementById("clue");
+    const optionsEl = document.getElementById("options");
+    const resultEl = document.getElementById("result");
+    const scoreEl = document.getElementById("score");
+    const restartBtn = document.getElementById("restart");
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timeLeft = 30;
+      timeEl.textContent = timeLeft;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timeEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          moveToNext();
+        }
+      }, 1000);
+    }
+
+    function loadQuestion() {
+      if (currentIndex >= quizData.length) {
+        endQuiz();
+        return;
+      }
+      // แสดงคำใบ (clue)
+      clueEl.textContent = quizData[currentIndex].clue;
+
+      // สร้างตัวเลือก (options) — ในเกมนี้ให้ผู้เล่น “เดา”เทศกาลชื่อ
+      optionsEl.innerHTML = "";
+      // เราจะสุ่มตัวเลือก 4 ตัว: 1 ตัวถูก + 3 ตัวผิด
+      const correct = quizData[currentIndex].festival;
+      // สร้างชุดตัวเลือก
+      let choices = [correct];
+      while (choices.length < 4) {
+        const rand = quizData[Math.floor(Math.random() * quizData.length)].festival;
+        if (!choices.includes(rand)) {
+          choices.push(rand);
+        }
+      }
+      // สับตัวเลือก
+      choices = choices.sort(() => Math.random() - 0.5);
+
+      // สร้างปุ่มตัวเลือก
+      for (const choice of choices) {
+        const btn = document.createElement("button");
+        btn.classList.add("option-btn");
+        btn.textContent = choice;
+        btn.onclick = () => checkAnswer(choice);
+        optionsEl.appendChild(btn);
+      }
+
+      // เริ่มจับเวลา
+      startTimer();
+    }
+
+    function checkAnswer(selected) {
+      clearInterval(timerInterval);
+      const correct = quizData[currentIndex].festival;
+      if (selected === correct) {
+        score++;
+      }
+      currentIndex++;
+      loadQuestion();
+    }
+
+    function moveToNext() {
+      // ถ้าหมดเวลาแล้ว ให้ข้ามคำถาม
+      currentIndex++;
+      loadQuestion();
+    }
+
+    function endQuiz() {
+      clearInterval(timerInterval);
+      clueEl.style.display = "none";
+      optionsEl.style.display = "none";
+      document.querySelector(".timer").style.display = "none";
+      resultEl.style.display = "block";
+      scoreEl.textContent = score;
+      restartBtn.style.display = "inline-block";
+    }
+
+    restartBtn.onclick = () => {
+      // รีเซ็ต
+      currentIndex = 0;
+      score = 0;
+      clueEl.style.display = "";
+      optionsEl.style.display = "flex";
+      document.querySelector(".timer").style.display = "";
+      resultEl.style.display = "none";
+      restartBtn.style.display = "none";
+      loadQuestion();
+    };
+
+    // เริ่มเกม
+    loadQuestion();
+  </script>
+</body>
+</html>
